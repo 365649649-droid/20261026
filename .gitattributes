@@ -1,0 +1,23 @@
+# 统一换行符，避免跨平台出问题
+* text=auto
+
+# 本文件自身用 LF
+.gitattributes text eol=lf
+
+# Windows 批处理必须是 CRLF，否则某些环境下执行异常
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# 其余统一 LF
+*.py text eol=lf
+*.md text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.ini text eol=lf
+*.txt text eol=lf
+
+# 图片按二进制处理，不做换行转换
+*.png binary
+*.jpg binary
+*.ico binary

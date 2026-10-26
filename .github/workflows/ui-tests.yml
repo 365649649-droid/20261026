@@ -1,0 +1,63 @@
+name: UI Tests
+
+# 什么时候自动跑：
+on:
+  push:
+    branches: [main, master]      # 推代码到主分支就跑
+  pull_request:
+    branches: [main, master]      # 提 PR 也跑，作为合并前的门禁
+  workflow_dispatch:               # 支持在 GitHub 网页上手动点一下触发
+
+jobs:
+  test:
+    name: Playwright + pytest
+    runs-on: windows-latest
+    timeout-minutes: 15
+
+    steps:
+      # 1. 把仓库代码拉到 CI 机器上
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 2. 装 Python，并开启 pip 缓存（第二次跑会快很多）
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      # 3. 装测试依赖
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest playwright
+
+      # 4. 装浏览器内核（CI 机器是干净的，必须装）
+      - name: Install Chromium
+        run: python -m playwright install chromium
+
+      # 5. 跑测试，同时产出 JUnit XML 报告
+      - name: Run tests
+        working-directory: pytest-suite
+        run: python -m pytest --junitxml=report.xml
+
+      # 6. 失败时上传截图 —— 这是整份配置里最有价值的一步
+      #    CI 上跑挂了，你人不在现场，只能靠这批截图还原现场
+      - name: Upload failure screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: failure-screenshots
+          path: pytest-suite/screenshots/
+          if-no-files-found: ignore
+          retention-days: 7
+
+      # 7. 无论成败都上传测试报告（成功记录也要留档）
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-report
+          path: pytest-suite/report.xml
+          if-no-files-found: ignore
+          retention-days: 7

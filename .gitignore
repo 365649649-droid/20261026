@@ -1,0 +1,20 @@
+# Python 运行产物
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# 测试产物（每次跑都会重新生成，不需要进仓库）
+report.xml
+screenshots/*.png
+
+# 本地环境
+.venv/
+venv/
+.env
+
+# 编辑器 / 系统
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
