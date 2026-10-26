@@ -6,7 +6,9 @@ __pycache__/
 
 # 测试产物（每次跑都会重新生成，不需要进仓库）
 report.xml
-screenshots/*.png
+# 注意用 **/ 才能匹配任意层级的 screenshots 目录
+**/screenshots/*.png
+!**/screenshots/.gitkeep
 
 # 本地环境
 .venv/
