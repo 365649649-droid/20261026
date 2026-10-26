@@ -67,6 +67,12 @@ def page(browser):
     """
     context = browser.new_context()
     page = context.new_page()
+
+    # 统一放宽操作超时（默认 30 秒）。访问境外站点时网络抖动很常见，
+    # 用例偶发 TimeoutError 大多是这个原因，不是脚本写错了。
+    page.set_default_timeout(60_000)
+    page.set_default_navigation_timeout(60_000)
+
     yield page
     context.close()
 

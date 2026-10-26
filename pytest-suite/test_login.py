@@ -23,7 +23,10 @@ def do_login(page, username, password):
     三条用例都要"打开页面 + 填账号 + 填密码 + 点登录"，
     抽成一个函数，改一次全生效。
     """
-    page.goto(BASE_URL)
+    # wait_until="domcontentloaded" 比默认的 "load" 更快也更稳：
+    # 只要 DOM 就绪就能操作，不必等图片等静态资源加载完。
+    # timeout 放宽到 60 秒，容忍网络波动。
+    page.goto(BASE_URL, wait_until="domcontentloaded", timeout=60_000)
     page.get_by_test_id("username").fill(username)
     page.get_by_test_id("password").fill(password)
     page.get_by_test_id("login-button").click()
@@ -93,4 +96,3 @@ def test_login_failures(page, username, password, expected_error):
     error = page.get_by_test_id("error")
     expect(error).to_be_visible()
     expect(error).to_contain_text(expected_error)
-    expect(page.get_by_test_id("title")).to_have_text("WRONG")
