@@ -19,18 +19,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # 2. 装 Python，并开启 pip 缓存（第二次跑会快很多）
+      # 2. 装 Python，并开启 pip 缓存
+      #    注意：cache: pip 要求仓库里存在 requirements.txt 或 pyproject.toml，
+      #    否则 setup-python 会直接报错退出（"No file ... matched to"）。
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
           cache: pip
 
-      # 3. 装测试依赖
+      # 3. 装测试依赖（从 requirements.txt 装，版本锁定、可复现）
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pytest playwright
+          pip install -r requirements.txt
 
       # 4. 装浏览器内核（CI 机器是干净的，必须装）
       - name: Install Chromium

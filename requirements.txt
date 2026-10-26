@@ -1,0 +1,4 @@
+# 测试运行依赖
+# 装法: pip install -r requirements.txt
+pytest>=8.0
+playwright>=1.40
