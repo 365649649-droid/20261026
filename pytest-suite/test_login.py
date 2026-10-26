@@ -93,3 +93,4 @@ def test_login_failures(page, username, password, expected_error):
     error = page.get_by_test_id("error")
     expect(error).to_be_visible()
     expect(error).to_contain_text(expected_error)
+    expect(page.get_by_test_id("title")).to_have_text("WRONG")
