@@ -183,6 +183,51 @@ pipeline {
 | CI 里测试红了，本地是绿的 | 环境差异（时区/语言/网络） | 看日志定位，这类问题正是 CI 的价值 |
 | `Playwright install` 超时 | CI 访问 CDN 慢 | 加镜像：`PLAYWRIGHT_DOWNLOAD_HOST` 环境变量 |
 
+### 实测踩过的坑（2026-10-26，真实发生）
+
+**坑 1：`cache: pip` 要求仓库里有依赖文件**
+
+```
+Setup Python
+Error: No file in D:\a\xxx\xxx matched to [**/requirements.txt or **/pyproject.toml]
+```
+
+`actions/setup-python` 开 `cache: pip` 时，**必须**能找到 `requirements.txt` 或 `pyproject.toml`
+来算缓存键，否则直接报错退出——**根本走不到测试那一步，13 秒就挂**。
+解决：加 `requirements.txt`，并把安装命令改成 `pip install -r requirements.txt`。
+
+**坑 2：境外站点 `goto` 30 秒超时**
+
+```
+playwright._impl._errors.TimeoutError: Page.goto: Timeout 30000ms exceeded
+navigating to "https://www.saucedemo.com/", waiting until "load"
+```
+
+默认 `wait_until="load"` 要等**所有图片等资源**加载完。网络稍差就超时。
+解决（两处都要改）：
+
+```python
+page.goto(URL, wait_until="domcontentloaded", timeout=60_000)
+page.set_default_timeout(60_000)
+page.set_default_navigation_timeout(60_000)
+```
+
+**坑 3：`.gitignore` 的 `screenshots/*.png` 不匹配嵌套目录**
+
+根目录写 `screenshots/*.png` 只能忽略同级目录，
+`pytest-suite/screenshots/*.png` 会被漏掉，导致失败截图被提交进仓库。
+解决：用 `**/screenshots/*.png`。
+
+**坑 4：断言放错位置，永远失败**
+
+在「登录失败」用例里断言商品页标题（`[data-test="title"]`）——
+登录失败时页面根本没有这个元素，断言永远拿不到值，报 `Actual value: None`。
+**断言必须验证"这个场景下应该存在的东西"。**
+
+> 判读 CI 结果的小技巧：匿名访问时日志需要登录才能看，
+> 但可以从 run 页面 HTML 里 grep `favicon-success` / `favicon-failure` 判断结论，
+> 比看文字描述可靠。
+
 ---
 
 ## 这一课你真正学到的东西
