@@ -4,8 +4,16 @@ name: UI Tests
 on:
   push:
     branches: [main, master]      # 推代码到主分支就跑
+    # 只改文档或图片时跳过。不加这个，改一个错别字也会跑满 2 分半的测试，
+    # 白占额度；跳过之后这类提交在 Actions 里根本不会留下记录。
+    paths-ignore:
+      - "**.md"
+      - "**.png"
   pull_request:
     branches: [main, master]      # 提 PR 也跑，作为合并前的门禁
+    paths-ignore:
+      - "**.md"
+      - "**.png"
   workflow_dispatch:               # 支持在 GitHub 网页上手动点一下触发
 
 jobs:
