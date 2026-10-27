@@ -44,6 +44,25 @@ def test_standard_user_can_login(page):
     expect(page.get_by_test_id("title")).to_have_text("Products")
     expect(page.get_by_test_id("inventory-container")).to_be_visible()
 
+    # ------------------------------------------------------------
+    # 【故意让 CI 红一次的练习】
+    #
+    # 位置很重要：这一行必须放在"已经成功登录、title 元素确实存在"的用例里。
+    # 因为此时页面上真的有 title，且它的值是 "Products"，
+    # 断言 "WRONG" 才能得到一条干净的对比：
+    #     Expected string: "WRONG"
+    #     Received string: "Products"
+    # 这才叫"断言失败"——元素找得到，是值不对。
+    #
+    # 如果把它放到登录失败的用例里（之前就是这么放的），
+    # 那里页面还停在登录页，压根没有 title 元素，
+    # 报出来的是 Actual value: None —— 那是"元素不存在"，不是"断言失败"，
+    # 看日志时会被误导成"页面结构变了"。
+    #
+    # 想恢复绿灯：删掉下面这一行。
+    # ------------------------------------------------------------
+    expect(page.get_by_test_id("title")).to_have_text("WRONG")
+
 
 # ============================================================
 # 用例 2：密码错误（失败路径）
