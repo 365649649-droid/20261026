@@ -38,12 +38,50 @@ jobs:
       - name: Install Chromium
         run: python -m playwright install chromium
 
-      # 5. 跑测试，同时产出 JUnit XML 报告
+      # 5. 装 Allure 命令行（用来把原始结果渲染成 HTML 报告）
+      #    用的是 Allure 3 的 npm 包，纯 Node 实现，不需要装 Java。
+      #    最后两行把 npm 全局 bin 目录写进后续步骤的 PATH。
+      #    注意用 Out-File 显式指定 utf8：PowerShell 里 >> 重定向的默认编码
+      #    在 5.1 和 7 上不一样，写坏了 PATH 会出现"路径全是乱码、命令找不到"。
+      - name: Install Allure CLI
+        run: |
+          npm install -g allure
+          $prefix = (npm prefix -g).Trim()
+          Write-Output "npm global prefix: $prefix"
+          $prefix | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      # 5.1 单独确认 allure 真的能调起来。
+      #     没有这一步，PATH 配错要等到"生成报告"那一步才报错，
+      #     而那时测试已经跑完了，你会误以为是报告生成逻辑有问题。
+      - name: Verify Allure CLI
+        run: allure --version
+
+      # 6. 跑测试，同时产出 JUnit XML + Allure 原始结果
+      #    allure-results 的具体路径写在 pytest-suite/pytest.ini 的 addopts 里，
+      #    所以这里不需要再手动加 --alluredir。
       - name: Run tests
         working-directory: pytest-suite
         run: python -m pytest --junitxml=report.xml
 
-      # 6. 失败时上传截图 —— 这是整份配置里最有价值的一步
+      # 7. 生成 Allure HTML 报告
+      #    if: always() —— 测试失败时更需要报告，不能用默认的"上一步成功才执行"
+      - name: Generate Allure report
+        if: always()
+        working-directory: pytest-suite
+        run: allure generate allure-results -o allure-report --clean
+
+      # 8. 上传报告。下载解压后打开 index.html 就能看（Allure 3 的报告需要经由
+      #    HTTP 访问才能加载数据，所以本地建议用 allure open 而不是双击 index.html）
+      - name: Upload Allure report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-report
+          path: pytest-suite/allure-report/
+          if-no-files-found: ignore
+          retention-days: 7
+
+      # 9. 失败时上传截图 —— 这是整份配置里最有价值的一步
       #    CI 上跑挂了，你人不在现场，只能靠这批截图还原现场
       - name: Upload failure screenshots
         if: failure()
@@ -54,7 +92,7 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
-      # 7. 无论成败都上传测试报告（成功记录也要留档）
+      # 10. 无论成败都上传 JUnit 报告（成功记录也要留档）
       - name: Upload test report
         if: always()
         uses: actions/upload-artifact@v4
