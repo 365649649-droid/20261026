@@ -3,15 +3,18 @@ pytest 公共配置（conftest.py）
 ==============================
 pytest 会自动加载这个文件，你不需要在任何地方 import 它。
 
-它做三件事：
+它做四件事：
     1. 注册两个自定义命令行参数：--headed / --slowmo
     2. 提供 browser 和 page 两个 fixture（测试函数用参数名直接取用）
-    3. 用例失败时自动截图
+    3. 用例失败时自动截图，并把截图塞进 Allure 报告
+    4. 把环境信息（Python / Playwright / 系统版本）写进报告首页
 """
 
+import platform
 import re
 from pathlib import Path
 
+import allure
 import pytest
 from playwright.sync_api import sync_playwright
 
@@ -80,7 +83,7 @@ def page(browser):
 @pytest.hookimpl(wrapper=True)
 def pytest_runtest_makereport(item, call):
     """
-    用例失败时自动截图存到 screenshots/。
+    用例失败时自动截图存到 screenshots/，并附到 Allure 报告里。
 
     这是自动化测试的救命功能：
     CI 上跑挂了，你不在现场，只能靠这张图还原"当时页面长什么样"。
@@ -92,13 +95,62 @@ def pytest_runtest_makereport(item, call):
         if page is not None:
             SCREENSHOT_DIR.mkdir(exist_ok=True)
             safe_name = re.sub(r"[^\w\-]", "_", item.name)
+            shot = SCREENSHOT_DIR / f"FAILED_{safe_name}.png"
             try:
-                page.screenshot(
-                    path=str(SCREENSHOT_DIR / f"FAILED_{safe_name}.png"),
-                    full_page=True,
+                page.screenshot(path=str(shot), full_page=True)
+                # 存一份到磁盘（给 CI 当 artifact），再附一份到报告里（给报告看）
+                with open(shot, "rb") as f:
+                    allure.attach(
+                        f.read(),
+                        name=f"失败截图 - {item.name}",
+                        attachment_type=allure.attachment_type.PNG,
+                    )
+                # 顺手记下失败时的网址，复现时能直接打开
+                allure.attach(
+                    page.url,
+                    name="失败时的页面地址",
+                    attachment_type=allure.attachment_type.URI_LIST,
                 )
             except Exception:
                 # 截图失败不能影响原本的错误信息
                 pass
 
     return report
+
+
+def pytest_sessionfinish(session, exitstatus):
+    """
+    Allure 报告的"环境信息"区块。
+
+    报告首页会显示这一块，用来回答"这个结果是什么机器上跑出来的"——
+    本地能过、CI 挂了的玄学问题，往往靠它破案（Python 版本不同、
+    浏览器版本不同、系统不同）。
+    """
+    alluredir = session.config.getoption("--alluredir", default=None)
+    if not alluredir:
+        return
+
+    from importlib.metadata import version
+
+    def safe(pkg):
+        try:
+            return version(pkg)
+        except Exception:
+            return "未安装"
+
+    info = {
+        "Python": platform.python_version(),
+        "pytest": safe("pytest"),
+        "playwright": safe("playwright"),
+        "allure-pytest": safe("allure-pytest"),
+        "操作系统": f"{platform.system()} {platform.release()}",
+        "浏览器": "Chromium（headless，可加 --headed 切可见）",
+        "被测站点": "https://www.saucedemo.com/",
+    }
+
+    target = Path(alluredir)
+    target.mkdir(parents=True, exist_ok=True)
+    (target / "environment.properties").write_text(
+        "\n".join(f"{k}={v}" for k, v in info.items()),
+        encoding="utf-8",
+    )

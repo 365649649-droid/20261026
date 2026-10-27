@@ -2,3 +2,6 @@
 # 装法: pip install -r requirements.txt
 pytest>=8.0
 playwright>=1.40
+# Allure 报告：pytest 的插件，负责把结果写成 allure-results/
+# 注意它只管"产出数据"，生成 HTML 报告还需要 allure 命令行工具（见 README）
+allure-pytest>=2.13
